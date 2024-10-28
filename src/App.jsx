@@ -12,6 +12,16 @@ import {
 import { Alchemy, Network, Utils } from 'alchemy-sdk';
 import { useState } from 'react';
 
+const API_HOST = process.env.API_HOST + ((process.env.API_PORT!='') ? `:${process.env.API_PORT}` : '');
+
+async function makeRequest(endpoint, args) {
+  return fetch(API_HOST + endpoint, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({args}),
+  })
+}
+
 function App() {
   const [userAddress, setUserAddress] = useState('');
   const [results, setResults] = useState([]);
@@ -19,22 +29,17 @@ function App() {
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
 
   async function getTokenBalance() {
-    const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
-      network: Network.ETH_MAINNET,
-    };
+    const data = await makeRequest('/core/getTokenBalances', [userAddress]);
+    const body = await data.json();
 
-    const alchemy = new Alchemy(config);
-    const data = await alchemy.core.getTokenBalances(userAddress);
-
-    setResults(data);
+    setResults(body);
 
     const tokenDataPromises = [];
 
-    for (let i = 0; i < data.tokenBalances.length; i++) {
-      const tokenData = alchemy.core.getTokenMetadata(
-        data.tokenBalances[i].contractAddress
-      );
+    for (let i = 0; i < body.tokenBalances.length; i++) {
+      const data = await makeRequest('/core/getTokenMetadata', [body.tokenBalances[i].contractAddress]);
+      const tokenData = await data.json();
+
       tokenDataPromises.push(tokenData);
     }
 
@@ -91,7 +96,7 @@ function App() {
                   color="white"
                   bg="blue"
                   w={'20vw'}
-                  key={e.id}
+                  key={e.contractAddress}
                 >
                   <Box>
                     <b>Symbol:</b> ${tokenDataObjects[i].symbol}&nbsp;
